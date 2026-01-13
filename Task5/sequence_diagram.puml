@@ -1,0 +1,50 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam sequenceArrowThickness 2
+skinparam sequenceBoxBorderColor black
+skinparam sequenceBoxBackgroundColor white
+skinparam sequenceLifeLineBorderColor black
+skinparam sequenceLifeLineBackgroundColor white
+skinparam sequenceParticipantBorderColor black
+skinparam sequenceParticipantBackgroundColor white
+
+title Sequence Diagram: Чтение списка заказов и изменение статуса с кешированием
+
+participant "Оператор" as Operator
+participant "MES Frontend" as Frontend
+participant "MES API" as API
+participant "Redis (Cache)" as Cache
+participant "RabbitMQ" as Queue
+participant "MES DB" as DB
+
+note over Operator, DB: Отображение списка заказов
+
+Operator -> Frontend: Request on dashboard
+Frontend -> API: Request
+API -> Cache: Get data
+alt Hit
+    Cache --> API: Return data
+else Miss
+    Cache -> DB: Query DB
+    DB --> Cache: Return data
+    Cache --> API: Return data
+end
+API --> Frontend: Return data
+Frontend --> Operator: Return on UI
+
+note over Operator, DB: Изменение статуса заказа
+
+Operator -> Frontend: Request Update status
+Frontend -> API: Update Status
+API -> Cache: Update data
+Cache -> DB: Update DB
+DB --> Cache: Success
+Cache --> API: Success
+API -> Queue: Publish event
+Queue --> API: Ack
+API --> Frontend: Success
+Frontend --> Operator: Update UI
+
+@enduml
